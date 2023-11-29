@@ -51,8 +51,8 @@ class ZMOF_Plugin {
 		include( ZMOF_PATH . '/shortcodes/zm_order_form.php' );
 		
 		// ACF fields and settings pages
-//		include( ZMOF_PATH . '/acf/fields.php' );
-//		include( ZMOF_PATH . '/acf/options.php' );
+		include( ZMOF_PATH . '/acf/fields.php' );
+		include( ZMOF_PATH . '/acf/options.php' );
 		
 	}
 	
