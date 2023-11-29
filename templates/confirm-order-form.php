@@ -5,11 +5,11 @@
 // 1. Confirm and submit the order
 // 2. Go back and edit the order
 
-$data = ZMOF_Forms()->get_validated_form_data();
-if ( ! $data ) wp_die('Order form submission is not available or could not be validated.');
-
-$form = ZMOF_Forms()->get_order_form_by_id( $data['form_id'] );
-if ( ! $form ) wp_die('Could not locate the order form that was submitted.');
+/**
+ * @global array $data The form data that was submitted.
+ *                     If using a block, the block settings are relayed through the shortcode.
+ * @global array $form The form settings from ZMOF_Forms()->get_order_form_by_id()
+ */
 
 // Remove the action from the submitted data, to avoid confusion
 unset( $data['action'] );

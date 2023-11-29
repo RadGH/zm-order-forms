@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: ZingMap Order Forms
-Description: Adds configurable order forms to the site which can be filled out and emailed to multiple recipients. The order form can only be filled out by users with the "Office Manager" role, or users with "edit_pages" permissions.
+Description: Adds configurable order forms to the site which can be filled out and emailed to multiple recipients. The order form can only be filled out by users with the included "Office Manager" role, or users with "edit_pages" permissions.
 Version: 1.2.0
 Author: Radley Sustaire, ZingMap
 Author URI: https://radleysustaire.com/
@@ -26,8 +26,7 @@ class ZMOF_Plugin {
 		add_action( 'plugins_loaded', array( $this, 'load_plugin' ) );
 		
 		// Add a link to the settings page on the plugin screen
-		$plugin_name = plugin_basename(__FILE__);
-		add_filter('plugin_action_links_' . $plugin_name, array( $this, 'add_plugin_settings_links' ) );
+		add_filter('plugin_action_links_' . plugin_basename(__FILE__), array( $this, 'add_plugin_settings_links' ) );
 		
 		// On plugin activation install custom role called Office Manager
 		register_activation_hook( __FILE__, array( $this, 'install_roles' ) );
@@ -35,6 +34,12 @@ class ZMOF_Plugin {
 	}
 	
 	public function load_plugin() {
+		
+		// Check if ACF exists
+		if ( ! class_exists('acf') ) {
+			add_action( 'admin_notices', array( $this, 'acf_not_found_notice' ) );
+			return;
+		}
 		
 		// Classes
 		// - For usage outside of this plugin: ZM_Order_Forms()->Enqueue->something();
@@ -46,8 +51,8 @@ class ZMOF_Plugin {
 		include( ZMOF_PATH . '/shortcodes/zm_order_form.php' );
 		
 		// ACF fields and settings pages
-		include( ZMOF_PATH . '/acf/fields.php' );
-		include( ZMOF_PATH . '/acf/options.php' );
+//		include( ZMOF_PATH . '/acf/fields.php' );
+//		include( ZMOF_PATH . '/acf/options.php' );
 		
 	}
 	
@@ -76,6 +81,19 @@ class ZMOF_Plugin {
 			);
 			add_role( 'office_manager', 'Office Manager', $capabilities );
 		}
+	}
+	
+	/**
+	 * Display a warning on the dashboard if ACF is not loaded
+	 *
+	 * @return void
+	 */
+	public function acf_not_found_notice() {
+		?>
+		<div class="notice notice-error">
+			<p><strong>ZingMap Order Forms:</strong> The plugin <a href="https://www.advancedcustomfields.com/" target="_blank">Advanced Custom Fields Pro</a> is required for this plugin to function.</p>
+		</div>
+		<?php
 	}
 	
 }

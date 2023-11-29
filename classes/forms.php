@@ -5,6 +5,7 @@ class ZMOF_Forms {
 	private $raw_form_data = null;
 	private $order_submitted = null;
 	private $validated_form_data = null;
+	private $sending_email = false;
 	private $validation_errors = array();
 	
 	public function __construct() {
@@ -22,6 +23,9 @@ class ZMOF_Forms {
 	
 	// Simple getters to make private methods accessible outside of this class
 	public function is_order_submitted() { return $this->order_submitted === true; }
+	public function is_order_valid() { return $this->is_order_submitted() && empty($this->validation_errors); }
+	public function is_sending_email() { return $this->sending_email; }
+	
 	public function get_validated_form_data() { return $this->validated_form_data; }
 	public function get_validation_errors() { return $this->validation_errors; }
 	
@@ -63,8 +67,13 @@ class ZMOF_Forms {
 		// Email must be valid
 		if ( ! empty($data['email']) && ! is_email($data['email']) ) $errors[] = '<strong>Email</strong>: Please enter a valid email address.';
 		
-		// Also required at least one product or custom product
+		// Require at least one product or custom product
 		if ( empty($data['products']) && empty($data['custom_products']) ) $errors[] = '<strong>Products:</strong> At least one product is required';
+		
+		// Order notes is optional, but has a max length of 2500 characters
+		if ( ! empty($data['order_notes']) && mb_strlen($data['order_notes']) > 2500 ) {
+			$errors[] = '<strong>Order Notes</strong> cannot exceed 2500 characters (Currently '. mb_strlen($data['order_notes']) .').';
+		}
 		
 		// Check if validation failed
 		if ( !empty( $errors ) ) {
@@ -73,8 +82,6 @@ class ZMOF_Forms {
 			$this->validation_errors = $errors;
 			
 		}
-		
-		// If successful, the shortcode or block will display the confirmation screen.
 		
 	}
 	
@@ -131,36 +138,100 @@ class ZMOF_Forms {
 	}
 	
 	/**
-	 * Get the order summary from a previous submission
+	 * Get the order form HTML to be displayed
+	 *
+	 * @param string  $form_id
+	 * @param string  $custom_classes
+	 * @param bool    $show_title
 	 *
 	 * @return string
 	 */
-	public function get_order_finalized_messsage() {
-		return 'The order form has been submitted successfully. Thank you!';
-	}
-	
-	/**
-	 * Get the confirmation message to be displayed after a successful order submission
-	 *
-	 * @return string
-	 */
-	public function get_review_order_form() {
+	public function get_order_form_html( $form_id, $custom_classes, $show_title ) {
 		
-		$data = ZMOF_Forms()->get_validated_form_data();
-		if ( ! $data ) wp_die('Order form submission is not available or could not be validated.');
+		// Classes for the shortcode
+		$classes = array();
+		$classes[] = 'form-id-' . $form_id;
+		if ( $custom_classes ) $classes[] = $custom_classes;
 		
-		$form = ZMOF_Forms()->get_order_form_by_id( $data['form_id'] );
-		if ( ! $form ) wp_die('Could not locate the order form that was submitted.');
+		// Determine what content should be displayed
+		do {
+			
+			// 1. Check if the form ID is valid
+			$form = ZMOF_Forms()->get_order_form_by_id( $form_id );
+			if ( ! $form ) {
+				$classes[] = 'form-error';
+				$html = __( 'Order form not found: "%s"', 'zm-order-forms' );
+				$html = sprintf( $html, $form_id );
+				$html = wpautop($html);
+				break;
+			}
+			
+			// 2. Check if the user is logged in
+			if ( ! is_user_logged_in() ) {
+				$classes[] = 'login-error';
+				$args = array(
+					'echo' => false,
+					'redirect' => get_permalink(),
+					'form_id' => 'zmof-login-form',
+				);
+				
+				$html = wpautop( __( '<h3>Sign in to view the order form:</h3>', 'zm-order-forms' ) );
+				$html .= wp_login_form( $args );
+				$html = apply_filters( 'zm_order_form/login_html', $html );
+				break;
+			}
+			
+			// 3. Check if the user can create an order
+			if ( ! ZMOF_Forms()->can_user_create_order() ) {
+				$classes[] = 'permission-error';
+				$html = __( 'You do not have permission to create an order', 'zm-order-forms' );
+				$html = wpautop( $html );
+				break;
+			}
+			
+			// 4. Check if a submitted order was finalized.
+			if ( ZMOF_Forms()->is_order_finalized() ) {
+				$classes[] = 'order-submitted';
+				$html = __( 'Your order has been submitted successfully', 'zm-order-forms' );
+				break;
+			}
+			
+			// 5. Check if the order form was submitted, then review the order.
+			if ( ZMOF_Forms()->is_order_submitted() && ZMOF_Forms()->is_order_valid() ) {
+				
+				$classes[] = 'review-order';
+				
+				$data = ZMOF_Forms()->get_validated_form_data();
+				if ( ! $data ) wp_die('Order form submission is not available or could not be validated.');
+				
+				$form = ZMOF_Forms()->get_order_form_by_id( $data['form_id'] );
+				if ( ! $form ) wp_die('Could not locate the order form that was submitted.');
+				
+				ob_start();
+				
+				echo '<h3 class="zm-review-order-title">Please review your order, and press Submit:</h3>';
+				
+				// Order summary table
+				include( ZMOF_PATH . '/templates/order-summary.php' );
+				
+				// Confirm order form, with button to go back
+				include( ZMOF_PATH . '/templates/confirm-order-form.php' );
+
+				$html = ob_get_clean();
+				
+				break;
+			}
+			
+			// 6. Otherwise, display the order form
+			$classes[] = 'create-order';
+			
+			ob_start();
+			include( ZMOF_PATH . '/templates/order-form.php' );
+			$html = ob_get_clean();
+			
+		} while(false);
 		
-		ob_start();
-		
-		// Order summary table
-		include( ZMOF_PATH . '/templates/order-summary.php' );
-		
-		// Confirm order form, with button to go back
-		include( ZMOF_PATH . '/templates/confirm-order-form.php' );
-		
-		return ob_get_clean();
+		return '<div class="zm-order-form '. esc_attr(implode(' ', $classes)) .'">' . $html . '</div>';
 	}
 	
 	/**
@@ -172,6 +243,10 @@ class ZMOF_Forms {
 	 * @return bool
 	 */
 	public function send_order_email( $data, $form ) {
+		
+		// Set a flag to indicate we are generating an email
+		$this->sending_email = true;
+		
 		// Get fields to use in the email:
 		$form_title = $form['form_title'];
 		$name = $data['name'];
@@ -189,7 +264,14 @@ class ZMOF_Forms {
 		
 		// Prepare email fields:
 		$subject = 'New "' . $form['form_title'] . '" order from ' . $name;
+		
 		$to = $form['send_to'];
+		
+		// If set, also email a copy to the user who submitted the form
+		if ( $form['email_user'] ) {
+			$to .= ', '. $email;
+		}
+		
 		$headers = array(
 			'Reply-To: '. $name .' <'. $email .'>',
 			'Content-Type: text/html; charset=UTF-8',
@@ -198,6 +280,9 @@ class ZMOF_Forms {
 		$body = '<p>A new order form has been submitted:</p>';
 		$body .= $summary_table;
 		$body .= '<p><em>This email was sent by the Order Forms plugin on <a href="'. esc_attr($site_url) .'" target="_blank">'. esc_html($site_title) .'</a>.</em></p>';
+		
+		// Clear the email flag
+		$this->sending_email = false;
 		
 		return wp_mail( $to, $subject, $body, $headers );
 	}
@@ -320,6 +405,7 @@ class ZMOF_Forms {
 	 *     @type string   $form_title
 	 *     @type string   $form_id
 	 *     @type string   $send_to
+	 *     @type bool     $email_user
 	 *     @type string[] $locations
 	 *     @type array    $categories {
 	 *         @type string    $category_title
@@ -333,6 +419,7 @@ class ZMOF_Forms {
 		$form_title = $form_data['title'] ?? 'Untitled Form';
 		$form_id    = $form_data['id']    ?? 'untitled-form';
 		$send_to    = $form_data['to']    ?? '';
+		$email_user = $form_data['email_user']    ?? true;
 		
 		// Get locations
 		$locations = $this->get_locations();
@@ -357,6 +444,7 @@ class ZMOF_Forms {
 			'form_title' => $form_title,
 			'form_id'    => $form_id,
 			'send_to'    => $send_to,
+			'email_user' => $email_user,
 			'locations'  => $locations,
 			'categories' => $categories,
 			'custom_category' => 'Write In',
@@ -407,13 +495,14 @@ class ZMOF_Forms {
 			wp_die('Your account does not have permission to submit the order form.');
 		}
 		
-		$name     = $data['name'] ?? '';
-		$email    = $data['email'] ?? '';
-		$location = $data['location'] ?? '';      // "Manhattan"
-		$products = $data['products'] ?? array(); // [category_title][product_title][quantity] = "1", [reference_number] = "abc"
+		$name        = $data['name'] ?? '';
+		$email       = $data['email'] ?? '';
+		$location    = $data['location'] ?? '';      // "Manhattan"
+		$products    = $data['products'] ?? array(); // [category_title][product_title][quantity] = "1", [reference_number] = "abc"
 		$custom_products = $data['custom_products'] ?? array(); // [0][title], [0][quantity], [0][reference_number]
-		$action   = $data['action'] ?? '';
-		$form_id  = $data['form_id'] ?? '';
+		$order_notes = $data['order_notes'] ?? '';
+		$action      = $data['action'] ?? '';
+		$form_id     = $data['form_id'] ?? '';
 		
 		// Remove empty products
 		if ( $products ) foreach( $products as $category_title => $c ) {
@@ -440,12 +529,16 @@ class ZMOF_Forms {
 			$custom_products = array();
 		}
 		
+		// Convert linebreaks to a single \n in order notes (textarea)
+		$order_notes = preg_replace( "/\r\n|\r/", "\n", $order_notes );
+		
 		$this->raw_form_data = array(
 			'name' => $name,
 			'email' => $email,
 			'location' => $location,
 			'products' => $products,
 			'custom_products' => $custom_products,
+			'order_notes' => $order_notes,
 			'action' => $action,
 			'form_id' => $form_id,
 		);

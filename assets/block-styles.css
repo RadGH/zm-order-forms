@@ -99,11 +99,15 @@
 }
 
 .zmof-category-table .col-title {
-	width: 68%;
+	width: 60%;
 }
 
-.zmof-category-table .col-input {
-	width: 16%;
+.zmof-category-table .col-quantity {
+	width: 15%;
+}
+
+.zmof-category-table .col-reference-number {
+	width: 25%;
 }
 
 .zmof-category-list {
@@ -117,6 +121,8 @@
 	margin-bottom: var( --vertical-spacing, 30px );
 }
 
+/*
+Two column layout (disabled)
 @supports ( columns: 2 ) {
 	@media ( min-width: 800px ) {
 		.zmof-category-list {
@@ -130,6 +136,7 @@
 		}
 	}
 }
+*/
 
 /* Validation errors */
 .zm-validation-errors {
@@ -183,4 +190,17 @@
 .zmof-submit {
 	margin: 20px auto 0;
 	text-align: center;
+}
+
+/* Order review */
+.zm-order-form.review-order {
+	max-width: fit-content;
+}
+
+table.zm-products-table {
+	width: auto !important;
+}
+
+.zm-review-order-title {
+	color: #ee3333;
 }

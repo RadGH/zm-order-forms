@@ -48,35 +48,42 @@ ob_start();
 	
 		<tr class="field-row">
 			<th class="field-title">Location:</th>
-			<td class="field-value" colspan="3"><?php echo esc_html($data['location']); ?></td>
+			<td class="field-value"><?php echo esc_html($data['location']); ?></td>
 		</tr>
 		
 		<tr class="field-row">
 			<th class="field-title">Ordering Person:</th>
-			<td class="field-value" colspan="3"><?php echo esc_html($data['name']); ?></td>
+			<td class="field-value"><?php echo esc_html($data['name']); ?></td>
 		</tr>
 		
 		<tr class="field-row">
 			<th class="field-title">Ordering Email:</th>
-			<td class="field-value" colspan="3"><?php echo esc_html($data['email']); ?></td>
+			<td class="field-value"><?php echo esc_html($data['email']); ?></td>
 		</tr>
-	
+		
+		<tr class="field-row">
+			<th class="field-title">Order Notes:</th>
+			<td class="field-value"><?php echo nl2br(esc_html($data['order_notes'])); ?></td>
+		</tr>
+	</tbody>
+</table>
+
+<table class="zm-products-table">
+	<tbody>
 		<?php
 		// Display products and categories
 		foreach( $product_lists as $category_title => $products ) {
-			// Add a separator row
-			?>
-			<tr class="separator-row">
-				<td class="separator" colspan="4">&nbsp;</td>
-			</tr>
-			<?php
-			
 			?>
 			<tr class="category-row">
 				<th class="category-title"><?php echo esc_html($category_title); ?></th>
 				<td class="category-gap"></td>
-				<th class="category-qty">Qty</th>
+				<th class="category-qty" colspan="2">Qty</th>
 				<th class="category-ref">Ref #</th>
+			
+				<?php if ( ZMOF_Forms()->is_sending_email() ) { ?>
+					<th class="category-ordered">Ordered</th>
+					<th class="category-received">Received</th>
+				<?php } ?>
 			</tr>
 			<?php
 			
@@ -85,8 +92,13 @@ ob_start();
 				<tr class="product-row">
 					<td class="product-title"><?php echo esc_html($p['title']); ?></td>
 					<td class="product-gap"></td>
-					<td class="product-qty"><?php echo esc_html($p['quantity']); ?></td>
+					<td class="product-qty" colspan="2"><?php echo esc_html($p['quantity']); ?></td>
 					<td class="product-ref"><?php echo esc_html($p['reference_number']); ?></td>
+					
+					<?php if ( ZMOF_Forms()->is_sending_email() ) { ?>
+						<td class="product-ordered"></td>
+						<td class="product-received"></td>
+					<?php } ?>
 				</tr>
 				<?php
 			}
@@ -97,36 +109,52 @@ ob_start();
 <?php
 $html = ob_get_clean();
 
-$th = 'padding: 3px 5px; text-align: left; font-weight: 700; ';
-$td = 'padding: 3px 5px; ';
+$table = 'margin: 20px 0; padding: 0; border-spacing: 0; border-collapse: collapse;';
 
-$gap = 'background-color: #aaa; ';
+$th = 'padding: 4px 6px; text-align: left; font-weight: 700; vertical-align: top; white-space: nowrap;';
+$td = 'padding: 4px 6px; ';
+
+$gap = 'background-color: #aaa; border: 1px solid #888;';
 $border = 'border: 1px solid #888; ';
 
-$separator = 'background-color: #fff';
+if ( ZMOF_Forms()->is_sending_email() ) {
+	$title_w = 'width: 25%; min-width: 200px; ';
+	$gap_w = 'width: 5%; min-width: 25px; ';
+	$qty_w = 'width: 10%; min-width: 75px; ';
+	$ref_w = 'width: 10%; min-width: 75px; ';
+	$ordered_w = 'width: 25%; min-width: 200px; ';
+	$received_w = 'width: 25%; min-width: 200px; ';
+}else{
+	$title_w = 'width: 45%; min-width: 200px; ';
+	$gap_w = 'width: 5%; min-width: 25px; ';
+	$qty_w = 'width: 25%; min-width: 75px; ';
+	$ref_w = 'width: 25%; min-width: 75px; ';
+	$ordered_w = '';
+	$received_w = '';
+}
+
 
 // Apply inline CSS in order to support email clients
 $replacements = array(
-	'<table class="zm-order-summary"' => '<table class="zm-order-summary" style="margin: 20px 0;"',
+	'<table class="zm-order-summary"' => '<table class="zm-order-summary" style="'. $table .'"',
+	'<table class="zm-products-table"' => '<table class="zm-products-table" style="table-layout: fixed; width: 100%;'. $table .'"',
 	
-	// '<tr class="field-row"'      => '<tr class="field-row"      style=""',
-	// '<tr class="category-row"'   => '<tr class="category-row"   style=""',
-	// '<tr class="product-row"'    => '<tr class="product-row"    style=""',
+	'<th class="field-title"'       => '<th class="field-title"    style="'. $th .'"',
+	'<td class="field-value"'       => '<td class="field-value"    style="'. $td .'"',
 	
-	'<th class="field-title"'    => '<th class="field-title"    style="'. $th .'"',
-	'<td class="field-value"'    => '<td class="field-value"    style="'. $td .'"',
+	'<th class="category-title"'    => '<th class="category-title" style="'. $title_w . $th . $border .'"',
+	'<td class="category-gap"'      => '<td class="category-gap"   style="'. $gap_w . $td . $gap .'"',
+	'<th class="category-qty"'      => '<th class="category-qty"   style="'. $qty_w . $th . $border .'"',
+	'<th class="category-ref"'      => '<th class="category-ref"   style="'. $ref_w . $th . $border .'"',
+	'<th class="category-ordered"'  => '<th class="category-ref"   style="'. $ordered_w . $th . $border .'"',
+	'<th class="category-received"' => '<th class="category-ref"   style="'. $received_w . $th . $border .'"',
 	
-	'<th class="category-title"' => '<th class="category-title" style="'. $th . $border .'"',
-	'<td class="category-gap"'   => '<td class="category-gap"   style="'. $td . $gap .'"',
-	'<th class="category-qty"'   => '<th class="category-qty"   style="'. $th . $border .'"',
-	'<th class="category-ref"'   => '<th class="category-ref"   style="'. $th . $border .'"',
-	
-	'<td class="product-title"'  => '<td class="product-title"  style="'. $td . $border .'"',
-	'<td class="product-gap"'    => '<td class="product-gap"    style="'. $td . $gap .'"',
-	'<td class="product-qty"'    => '<td class="product-qty"    style="'. $td . $border .'"',
-	'<td class="product-ref"'    => '<td class="product-ref"    style="'. $td . $border .'"',
-	
-	'<td class="separator"' => '<td class="separator" style="'. $separator .'"',
+	'<td class="product-title"'     => '<td class="product-title"  style="'. $title_w . $td . $border .'"',
+	'<td class="product-gap"'       => '<td class="product-gap"    style="'. $gap_w . $td . $gap .'"',
+	'<td class="product-qty"'       => '<td class="product-qty"    style="'. $qty_w . $td . $border .'"',
+	'<td class="product-ref"'       => '<td class="product-ref"    style="'. $ref_w . $td . $border .'"',
+	'<td class="product-ordered"'   => '<td class="product-ref"    style="'. $ordered_w . $td . $border .'"',
+	'<td class="product-received"'  => '<td class="product-ref"    style="'. $received_w . $td . $border .'"',
 );
 
 $s = array_keys( $replacements );
