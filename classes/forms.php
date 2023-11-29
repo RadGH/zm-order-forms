@@ -192,7 +192,7 @@ class ZMOF_Forms {
 			// 4. Check if a submitted order was finalized.
 			if ( ZMOF_Forms()->is_order_finalized() ) {
 				$classes[] = 'order-submitted';
-				$html = __( 'Your order has been submitted successfully', 'zm-order-forms' );
+				$html = __( 'Your order has been submitted successfully.', 'zm-order-forms' );
 				break;
 			}
 			
