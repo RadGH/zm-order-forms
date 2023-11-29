@@ -1,0 +1,14 @@
+{
+	"name": "zm-order-forms/order-form",
+	"title": "Order Form",
+	"description": "Displays an order form that can be filled out by users with the Office Manager, or any admin.",
+	"style": "zm-order-forms-block-styles",
+	"editorScript": "zm-order-forms-block-editor",
+	"category": "embed",
+	"icon": "list-view",
+	"keywords": ["form", "list", "order"],
+	"acf": {
+		"mode": "preview",
+		"renderTemplate": "block.php"
+	}
+}
